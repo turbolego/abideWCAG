@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>abideWCAG — Live WCAG 2.2 Violation Demo (Laya Model)</title>
-<script src="./vendor/coi.js"></script>
+<script src="./coi.js"></script>
 <style>
   :root{
     --bg:#f6f5f1; --card:#ffffff; --ink:#1c1b19; --ink2:#5b5850; --line:#e3e0d8;
@@ -137,6 +137,7 @@ import { Tokenizer } from "./vendor/tokenizers.min.mjs";
 import { WcagLaya, buildWcagSequence, collateOne } from "./laya-wcag-core.js";
 
 const $ = (id) => document.getElementById(id);
+const $$ = (sel) => document.querySelector(sel);
 
 // -------- Same model files as LayaWCAG --------
 const MODEL_DIR = "./model/";
@@ -284,7 +285,7 @@ function renderResults(res) {
   const thresh = parseFloat($("threshold").value) || 0.5;
 
   // Violations table
-  const vt = $("violationsTable tbody");
+  const vt = $$("#violationsTable tbody");
   vt.innerHTML = "";
   if (res.violations.length === 0) {
     $("noViolations").style.display = "block";
@@ -298,7 +299,7 @@ function renderResults(res) {
   }
 
   // Top 15 table
-  const at = $("allTable tbody");
+  const at = $$("#allTable tbody");
   at.innerHTML = "";
   const top = [...res.criteria].sort((a, b) => b.violation - a.violation).slice(0, 15);
   for (const c of top) {
@@ -341,8 +342,8 @@ async function runCheck() {
 }
 
 function clearResults() {
-  $("violationsTable tbody").innerHTML = "";
-  $("allTable tbody").innerHTML = "";
+  $$("#violationsTable tbody").innerHTML = "";
+  $$("#allTable tbody").innerHTML = "";
   $("criteriaBadges").innerHTML = "";
   $("noViolations").style.display = "none";
   $("resultsCard").style.display = "none";
