@@ -1,0 +1,380 @@
+[
+ {
+  "criterion": "1.1.1",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Non-text Content"
+ },
+ {
+  "criterion": "1.2.1",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Audio-only and Video-only"
+ },
+ {
+  "criterion": "1.2.2",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Captions (Prerecorded)"
+ },
+ {
+  "criterion": "1.2.3",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Audio Description or Media Alternative"
+ },
+ {
+  "criterion": "1.2.4",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Captions (Live)"
+ },
+ {
+  "criterion": "1.2.5",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Audio Description (Prerecorded)"
+ },
+ {
+  "criterion": "1.3.1",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Info and Relationships"
+ },
+ {
+  "criterion": "1.3.2",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Meaningful Sequence"
+ },
+ {
+  "criterion": "1.3.3",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Sensory Characteristics"
+ },
+ {
+  "criterion": "1.3.4",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Orientation"
+ },
+ {
+  "criterion": "1.3.5",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Identify Input Purpose"
+ },
+ {
+  "criterion": "1.3.6",
+  "principle": "Perceivable",
+  "level": "AAA",
+  "description": "Identify Purpose"
+ },
+ {
+  "criterion": "1.4.1",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Use of Color"
+ },
+ {
+  "criterion": "1.4.2",
+  "principle": "Perceivable",
+  "level": "A",
+  "description": "Audio Control"
+ },
+ {
+  "criterion": "1.4.3",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Contrast (Minimum)"
+ },
+ {
+  "criterion": "1.4.4",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Resize Text"
+ },
+ {
+  "criterion": "1.4.5",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Images of Text"
+ },
+ {
+  "criterion": "1.4.6",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Contrast (Enhanced)"
+ },
+ {
+  "criterion": "1.4.7",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Low or No Background Audio"
+ },
+ {
+  "criterion": "1.4.8",
+  "principle": "Perceivable",
+  "level": "AAA",
+  "description": "Visual Presentation"
+ },
+ {
+  "criterion": "1.4.9",
+  "principle": "Perceivable",
+  "level": "AAA",
+  "description": "Images of Text (No Exception)"
+ },
+ {
+  "criterion": "1.4.10",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Reflow"
+ },
+ {
+  "criterion": "1.4.11",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Non-text Contrast"
+ },
+ {
+  "criterion": "1.4.12",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Text Spacing"
+ },
+ {
+  "criterion": "1.4.13",
+  "principle": "Perceivable",
+  "level": "AA",
+  "description": "Content on Hover or Focus"
+ },
+ {
+  "criterion": "2.1.1",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Keyboard"
+ },
+ {
+  "criterion": "2.1.2",
+  "principle": "Operable",
+  "level": "A",
+  "description": "No Keyboard Trap"
+ },
+ {
+  "criterion": "2.1.4",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Character Key Shortcuts"
+ },
+ {
+  "criterion": "2.2.1",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Timing Adjustable"
+ },
+ {
+  "criterion": "2.2.2",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Pause, Stop, Hide"
+ },
+ {
+  "criterion": "2.3.1",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Three Flashes or Below Threshold"
+ },
+ {
+  "criterion": "2.4.1",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Bypass Blocks"
+ },
+ {
+  "criterion": "2.4.2",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Page Titled"
+ },
+ {
+  "criterion": "2.4.3",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Focus Order"
+ },
+ {
+  "criterion": "2.4.4",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Link Purpose (In Context)"
+ },
+ {
+  "criterion": "2.4.5",
+  "principle": "Operable",
+  "level": "AA",
+  "description": "Multiple Ways"
+ },
+ {
+  "criterion": "2.4.6",
+  "principle": "Operable",
+  "level": "AA",
+  "description": "Headings and Labels"
+ },
+ {
+  "criterion": "2.4.7",
+  "principle": "Operable",
+  "level": "AA",
+  "description": "Focus Visible"
+ },
+ {
+  "criterion": "2.4.11",
+  "principle": "Operable",
+  "level": "AA",
+  "description": "Focus Not Obscured (Minimum)"
+ },
+ {
+  "criterion": "2.4.12",
+  "principle": "Operable",
+  "level": "AAA",
+  "description": "Focus Not Obscured (Enhanced)"
+ },
+ {
+  "criterion": "2.4.13",
+  "principle": "Operable",
+  "level": "AAA",
+  "description": "Focus Appearance"
+ },
+ {
+  "criterion": "2.5.1",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Pointer Gestures"
+ },
+ {
+  "criterion": "2.5.2",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Pointer Cancellation"
+ },
+ {
+  "criterion": "2.5.3",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Label in Name"
+ },
+ {
+  "criterion": "2.5.4",
+  "principle": "Operable",
+  "level": "A",
+  "description": "Motion Actuation"
+ },
+ {
+  "criterion": "2.5.5",
+  "principle": "Operable",
+  "level": "AAA",
+  "description": "Target Size (Large)"
+ },
+ {
+  "criterion": "2.5.6",
+  "principle": "Operable",
+  "level": "AAA",
+  "description": "Concurrent Input Mechanisms"
+ },
+ {
+  "criterion": "3.1.1",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "Language of Page"
+ },
+ {
+  "criterion": "3.1.2",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Language of Parts"
+ },
+ {
+  "criterion": "3.2.1",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "On Focus"
+ },
+ {
+  "criterion": "3.2.2",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "On Input"
+ },
+ {
+  "criterion": "3.2.3",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Consistent Navigation"
+ },
+ {
+  "criterion": "3.2.4",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Consistent Identification"
+ },
+ {
+  "criterion": "3.2.6",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "Consistent Help"
+ },
+ {
+  "criterion": "3.3.1",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "Error Identification"
+ },
+ {
+  "criterion": "3.3.2",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "Labels or Instructions"
+ },
+ {
+  "criterion": "3.3.3",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Error Suggestion"
+ },
+ {
+  "criterion": "3.3.4",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Error Prevention (Legal, Financial, Medical)"
+ },
+ {
+  "criterion": "3.3.7",
+  "principle": "Understandable",
+  "level": "A",
+  "description": "Redundant Input"
+ },
+ {
+  "criterion": "3.3.8",
+  "principle": "Understandable",
+  "level": "AA",
+  "description": "Accessible Authentication (Minimum)"
+ },
+ {
+  "criterion": "4.1.1",
+  "principle": "Robust",
+  "level": "A",
+  "description": "Parsing"
+ },
+ {
+  "criterion": "4.1.2",
+  "principle": "Robust",
+  "level": "A",
+  "description": "Name, Role, Value"
+ },
+ {
+  "criterion": "4.1.3",
+  "principle": "Robust",
+  "level": "AA",
+  "description": "Status Messages"
+ }
+]

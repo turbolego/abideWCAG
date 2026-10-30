@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "source": "turbolego/LayaWCAG",
+  "chunk_bytes": 25165824,
+  "variants": {
+    "wcag": {
+      "label": "WCAG 2.2 Violations",
+      "onnx": "laya-wcag.onnx",
+      "data": {
+        "name": "laya-wcag.onnx.data",
+        "size": 395545600,
+        "sha256": "6d2116d639be5839f8334d6ea593f33b84132e4dbefce1ff6d6d0d4f321de8ed",
+        "parts": [
+          "laya-wcag.0000.onnx.data",
+          "laya-wcag.0001.onnx.data",
+          "laya-wcag.0002.onnx.data",
+          "laya-wcag.0003.onnx.data",
+          "laya-wcag.0004.onnx.data",
+          "laya-wcag.0005.onnx.data",
+          "laya-wcag.0006.onnx.data",
+          "laya-wcag.0007.onnx.data",
+          "laya-wcag.0008.onnx.data",
+          "laya-wcag.0009.onnx.data",
+          "laya-wcag.0010.onnx.data",
+          "laya-wcag.0011.onnx.data",
+          "laya-wcag.0012.onnx.data",
+          "laya-wcag.0013.onnx.data",
+          "laya-wcag.0014.onnx.data",
+          "laya-wcag.0015.onnx.data"
+        ]
+      },
+      "note": "v6 + contrast (1.4.3) MLP fine-tune; only column 14 changed"
+    }
+  }
+}

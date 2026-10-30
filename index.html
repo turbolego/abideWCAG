@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>abideWCAG — Live WCAG 2.2 Violation Demo (Laya Model)</title>
+<script src="./vendor/coi.js"></script>
+<style>
+  :root{
+    --bg:#f6f5f1; --card:#ffffff; --ink:#1c1b19; --ink2:#5b5850; --line:#e3e0d8;
+    --accent:#2a5bd7; --accent-ink:#ffffff; --good:#1f7a4d; --warn:#b4570a; --bar:#d9e2fb; --bar-top:#2a5bd7;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    --bg:#151513; --card:#1e1d1a; --ink:#f0eee8; --ink2:#a6a297; --line:#33312c;
+    --accent:#7ea2ff; --accent-ink:#0d1220; --good:#5fcf95; --warn:#f0a35c; --bar:#2a3555; --bar-top:#7ea2ff; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:980px;margin:0 auto;padding:28px 16px 64px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--ink2);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin:0 0 10px;font-weight:600}
+  label{display:block;font-size:13px;color:var(--ink2);margin:0 0 4px}
+  select,textarea,input[type=number]{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+  textarea{font-family:var(--mono);font-size:13px;resize:vertical}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:end}
+  button{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:9px 16px;cursor:pointer}
+  button.secondary{background:transparent;color:var(--accent)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .status{font-size:13px;min-height:18px}
+  .status.warn{color:var(--warn)}
+  .status.ok{color:var(--good)}
+  .progress{height:4px;background:var(--bar);border-radius:2px;overflow:hidden;display:none}
+  .progress>div{height:100%;background:var(--bar-top);width:0;transition:width .15s linear}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left}
+  th{color:var(--ink2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .bar-cell{position:relative;height:20px}
+  .bar-cell>div{position:absolute;top:0;bottom:0;left:0;border-radius:3px;background:var(--bar);width:0}
+  .bar-cell>div.fill{background:linear-gradient(90deg,var(--bar-top),var(--good));width:var(--p)}
+  .prob{font-variant-numeric:tabular-nums}
+  .violated{color:var(--warn);font-weight:600}
+  .clean{color:var(--good)}
+  .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bar);color:var(--accent)}
+  .badge.warn{background:#ffe8d6;color:var(--warn)}
+  .footer{margin-top:24px;font-size:12px;color:var(--ink2);line-height:1.6}
+  .footer a{color:var(--accent);text-decoration:none}
+  .footer a:hover{text-decoration:underline}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:700px){.grid2{grid-template-columns:1fr}}
+  details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--card)}
+  summary{cursor:pointer;font-weight:600}
+  .model-info{font-size:12px;color:var(--ink2);margin:8px 0}
+  .criteria-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-top:8px}
+  .criteria-item{padding:4px 8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;font-size:12px}
+  .criteria-item.violated{border-color:var(--warn);background:#fff5e6}
+</style>
+</head>
+<body>
+<main>
+  <h1>abideWCAG — Live WCAG 2.2 Violation Demo</h1>
+  <p class="sub">Runs the LayaWCAG ONNX model (frozen ModernBERT-base + 63-criterion head) entirely in your browser via onnxruntime-web. No server calls, no tokens, no API keys.</p>
+
+  <div class="card">
+    <h2>Model & backend</h2>
+    <div class="model-info" id="modelInfo">Loading…</div>
+    <div class="row">
+      <div>
+        <label>Execution provider</label>
+        <select id="provider">
+          <option value="wasm">WASM (works everywhere)</option>
+          <option value="webgpu">WebGPU (faster, Chrome/Edge 113+)</option>
+        </select>
+      </div>
+      <div>
+        <label>Violation threshold</label>
+        <input type="number" id="threshold" min="0" max="1" step="0.05" value="0.5">
+      </div>
+      <div>
+        <label>Max sequence length</label>
+        <input type="number" id="maxLen" min="64" max="512" step="32" value="256">
+      </div>
+    </div>
+    <button id="loadBtn">Load model</button>
+    <button id="warmBtn" disabled>Warm-up run</button>
+    <div class="progress" id="progress"><div id="progressBar"></div></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Test HTML snippet</h2>
+    <label>Choose an example or paste your own markup:</label>
+    <div class="row" style="margin-bottom:8px">
+      <select id="exampleSel">
+        <option value="">— Custom —</option>
+      </select>
+    </div>
+    <textarea id="htmlInput" rows="8" placeholder="Paste HTML here…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="runBtn" disabled>Run check</button>
+      <button id="clearBtn" class="secondary" disabled>Clear</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none">
+    <h2>Results</h2>
+    <div class="grid2">
+      <div>
+        <h3 style="font-size:14px;margin:0 0 8px">Violations (P ≥ threshold)</h3>
+        <table id="violationsTable"><thead><tr><th>Criterion</th><th class="prob">Probability</th></tr></thead><tbody></tbody></table>
+        <p id="noViolations" style="display:none;color:var(--good);margin:8px 0">No violations above threshold 🎉</p>
+      </div>
+      <div>
+        <h3 style="font-size:14px;margin:0 0 8px">All 63 criteria (top 15 by probability)</h3>
+        <table id="allTable"><thead><tr><th>Criterion</th><th class="prob">P(violation)</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <details style="margin-top:12px">
+      <summary>Show all 63 criteria as badges</summary>
+      <div class="criteria-list" id="criteriaBadges"></div>
+    </details>
+    <p class="model-info" id="timing"></p>
+  </div>
+
+  <div class="footer">
+    <p><strong>Model:</strong> LayaWCAG — frozen <code>answerdotai/ModernBERT-base</code> encoder (int8) + fp32 MLP head, 63 WCAG 2.2 criteria, 256-token context, int8 ONNX (~300 KB) + 395 MB external data (16 chunks, cached in browser).</p>
+    <p><strong>Source:</strong> <a href="https://github.com/turbolego/abideWCAG" target="_blank">turbolego/abideWCAG</a> · <a href="https://github.com/turbolego/LayaWCAG" target="_blank">turbolego/LayaWCAG</a> · <a href="https://vishalmysore.github.io/layaForWeb/" target="_blank">Original Laya demo</a></p>
+    <p><strong>Limitation:</strong> The model only sees raw HTML text — no CSS, no rendered layout. Contrast/layout checks are weak. Use <a href="https://www.deque.com/axe/" target="_blank">axe-core</a> for authoritative audits.</p>
+    <p>Deployed via GitHub Pages from <code>main</code> branch, root directory. Model files served from <code>./model/</code>.</p>
+  </div>
+</main>
+
+<script type="module">
+import * as ort from "./vendor/ort.min.mjs";
+import { Tokenizer } from "./vendor/tokenizers.min.mjs";
+import { WcagLaya, loadCriteria, buildWcagSequence, collateOne } from "./laya-wcag-core.js";
+
+const $ = (id) => document.getElementById(id);
+
+// -------- Same model files as LayaWCAG --------
+const MODEL_DIR = "./model/";
+
+// Examples (same as LayaWCAG demo)
+const EXAMPLES = {
+  "Image without alt text": '<img src="chart.png" width="200">\n<p>Q3 results</p>',
+  "Button with no accessible name": '<div role="button" class="btn"></div>',
+  "Form input without label": '<form><input type="email" name="email" placeholder="you@example.com"><button>Go</button></form>',
+  "Heading level skipped": '<h1>Page title</h1>\n<h4>First section</h4>\n<p>Body text</p>',
+  "Link with no discernible text": '<a href="/next"><img src="arrow.gif"></a>',
+  "Iframe without title": '<iframe src="https://example.com/widget" width="600" height="400"></iframe>',
+  "Clean semantic snippet": '<main aria-label="Main">\n  <h1>Contact us</h1>\n  <label for="email">Email</label>\n  <input id="email" type="email" name="email">\n  <img src="logo.png" alt="Company logo">\n  <button type="submit">Send</button>\n</main>',
+};
+
+let wcag = null;
+let backendUsed = "";
+let lastResult = null;
+
+// UI helpers
+function setStatus(msg, cls = "") { const s = $("status"); s.textContent = msg; s.className = "status " + cls; }
+function setProgress(f) { const p = $("progress"); p.style.display = f == null ? "none" : "block"; if (f != null) $("progressBar").style.width = (f * 100) + "%"; }
+
+// Populate example selector
+const exSel = $("exampleSel");
+Object.keys(EXAMPLES).forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; exSel.appendChild(o); });
+exSel.addEventListener("change", () => { $("htmlInput").value = EXAMPLES[exSel.value] || ""; });
+
+// Download helpers (reuse LayaWCAG's cache-parts logic)
+async function fetchBytes(url, onProgress) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}. Model files missing?`);
+  const total = Number(res.headers.get("content-length") || 0);
+  let got = 0;
+  const reader = res.body.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    onProgress?.(got, total);
+  }
+  const out = new Uint8Array(got);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out.buffer;
+}
+
+let fetchPartsCache = null;
+async function fetchParts(entry, onProgress) {
+  if (!fetchPartsCache) {
+    try { fetchPartsCache = await caches.open("laya-wcag-" + entry.sha256.slice(0, 16)); } catch { /* private mode */ }
+  }
+  const parts = entry.parts;
+  const total = entry.size;
+  let got = 0;
+  let fromCache = 0;
+  const buffers = [];
+  for (const part of parts) {
+    const url = MODEL_DIR + part;
+    let bytes;
+    if (fetchPartsCache) {
+      const cached = await fetchPartsCache.match(url);
+      if (cached) {
+        bytes = await cached.arrayBuffer();
+        fromCache++;
+      }
+    }
+    if (!bytes) {
+      bytes = await fetchBytes(url, (g, t) => onProgress?.(got + g, total));
+      if (fetchPartsCache) fetchPartsCache.put(url, new Response(bytes.slice(0)));
+    }
+    buffers.push(bytes);
+    got += bytes.byteLength;
+    onProgress?.(got, total);
+  }
+  fetchParts.lastFromCache = fromCache;
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const b of buffers) { out.set(new Uint8Array(b), off); off += b.byteLength; }
+  return out.buffer;
+}
+
+async function loadModel() {
+  const want = $("provider").value;
+  setStatus("Fetching tokenizer & manifest…");
+  setProgress(null);
+
+  const [tj, tc, criteria, manifest] = await Promise.all([
+    fetch(MODEL_DIR + "tokenizer.json").then(r => { if (!r.ok) throw new Error("tokenizer.json: " + r.status); return r.json(); }),
+    fetch(MODEL_DIR + "tokenizer_config.json").then(r => { if (!r.ok) throw new Error("tokenizer_config.json: " + r.status); return r.json(); }),
+    loadCriteria(MODEL_DIR + "wcag_criteria.json"),
+    fetch(MODEL_DIR + "manifest.json").then(r => { if (!r.ok) throw new Error("manifest.json: " + r.status); return r.json(); }),
+  ]);
+
+  const tokenizer = new Tokenizer(tj, tc);
+  const v = manifest.variants?.wcag;
+  if (!v) throw new Error("manifest.json has no \"wcag\" variant");
+
+  setStatus(`Downloading model (${(v.data.size / 1048576).toFixed(0)} MB)…`);
+  const progress = (name) => (got, total) => { setProgress(total ? got / total : null); setStatus(`Downloading ${name}: ${(got / 1048576).toFixed(0)}${total ? " / " + (total / 1048576).toFixed(0) : ""} MB`); };
+
+  const t0 = performance.now();
+  const [graph, data] = await Promise.all([
+    fetchBytes(MODEL_DIR + v.onnx),
+    fetchParts(v.data, progress(v.data.name)),
+  ]);
+  const dlMs = performance.now() - t0;
+
+  setStatus("Creating inference session (this can take a while on first run)…");
+  setProgress(null);
+  const t1 = performance.now();
+  const session = await ort.InferenceSession.create(graph, {
+    executionProviders: want === "webgpu" ? ["webgpu", "wasm"] : ["wasm"],
+    graphOptimizationLevel: "all",
+    externalData: [{ path: v.data.name, data }],
+  });
+  const initMs = performance.now() - t1;
+
+  wcag = new WcagLaya(ort, session, tokenizer, criteria);
+  backendUsed = want;
+
+  setStatus(`Ready. Download ${(dlMs / 1000).toFixed(1)} s${fetchParts.lastFromCache ? ` (${fetchParts.lastFromCache} of ${v.data.parts.length} parts from cache)` : ""}, session init ${(initMs / 1000).toFixed(1)} s`, "ok");
+  $("warmBtn").disabled = false;
+  $("runBtn").disabled = false;
+  $("clearBtn").disabled = false;
+  $("loadBtn").disabled = true;
+  $("provider").disabled = true;
+
+  // Update model info display
+  $("modelInfo").textContent = `LayaWCAG WCAG 2.2 variant · ${v.label} · ${(v.data.size / 1048576).toFixed(0)} MB external data · ${v.onnx} · backend: ${want.toUpperCase()}`;
+}
+
+async function warmUp() {
+  setStatus("Warming up…");
+  const w0 = performance.now();
+  await wcag.systemOne("<p>warm up</p>");
+  const warmMs = performance.now() - w0;
+  setStatus(`Warmed up in ${warmMs.toFixed(0)} ms`, "ok");
+}
+
+function renderResults(res) {
+  lastResult = res;
+  const thresh = parseFloat($("threshold").value) || 0.5;
+
+  // Violations table
+  const vt = $("violationsTable tbody");
+  vt.innerHTML = "";
+  if (res.violations.length === 0) {
+    $("noViolations").style.display = "block";
+  } else {
+    $("noViolations").style.display = "none";
+    for (const v of res.violations) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><code>${v.criterion}</code> — ${v.description}</td><td class="prob violated">${(v.probability * 100).toFixed(1)}%</td>`;
+      vt.appendChild(tr);
+    }
+  }
+
+  // Top 15 table
+  const at = $("allTable tbody");
+  at.innerHTML = "";
+  const top = [...res.criteria].sort((a, b) => b.violation - a.violation).slice(0, 15);
+  for (const c of top) {
+    const tr = document.createElement("tr");
+    const cls = c.violation >= thresh ? "violated" : "";
+    tr.innerHTML = `<td><code>${c.criterion}</code> ${c.level ? `(${c.level})` : ""}</td><td class="prob ${cls}">${(c.violation * 100).toFixed(1)}%</td>`;
+    at.appendChild(tr);
+  }
+
+  // Badges
+  const badges = $("criteriaBadges");
+  badges.innerHTML = "";
+  for (const c of res.criteria) {
+    const span = document.createElement("span");
+    span.className = "criteria-item" + (c.violation >= thresh ? " violated" : "");
+    span.textContent = `${c.criterion}: ${(c.violation * 100).toFixed(1)}%`;
+    badges.appendChild(span);
+  }
+
+  // Timing
+  $("timing").textContent = `Inference: ${res.latency_ms.toFixed(0)} ms · Threshold: ${thresh} · Backend: ${backendUsed.toUpperCase()}`;
+  $("resultsCard").style.display = "block";
+}
+
+async function runCheck() {
+  if (!wcag) { setStatus("Model not loaded", "warn"); return; }
+  const text = $("htmlInput").value.trim();
+  if (!text) { setStatus("Enter HTML to check", "warn"); return; }
+  const thresh = parseFloat($("threshold").value) || 0.5;
+  const maxLen = parseInt($("maxLen").value, 10) || 256;
+
+  setStatus("Running inference…");
+  setProgress(null);
+  const t0 = performance.now();
+  const res = await wcag.systemOne(text, { threshold: thresh, maxLen });
+  const totalMs = performance.now() - t0;
+  res.latency_ms = totalMs;
+  renderResults(res);
+  setStatus(`Done in ${totalMs.toFixed(0)} ms`, "ok");
+}
+
+function clearResults() {
+  $("violationsTable tbody").innerHTML = "";
+  $("allTable tbody").innerHTML = "";
+  $("criteriaBadges").innerHTML = "";
+  $("noViolations").style.display = "none";
+  $("resultsCard").style.display = "none";
+  $("timing").textContent = "";
+  setStatus("");
+}
+
+// Event wiring
+$("loadBtn").addEventListener("click", () => loadModel().catch(e => { console.error(e); setStatus("Load failed: " + e.message, "warn"); }));
+$("warmBtn").addEventListener("click", warmUp);
+$("runBtn").addEventListener("click", runCheck);
+$("clearBtn").addEventListener("click", clearResults);
+</script>
+</body>
+</html>
