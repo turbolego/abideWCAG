@@ -31,7 +31,7 @@ const rules: Rule[] = [
   rule({
     id: "raw-error-to-user",
     when: "edit",
-    check: { type: "model", question: { type: "boolean", instructions: "?" } },
+    check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
     calibration: {
       at: "x",
       hunks: 20,
@@ -46,7 +46,7 @@ const rules: Rule[] = [
     id: "imports-ordered-by-length",
     when: "edit",
     status: "weak",
-    check: { type: "model", question: { type: "boolean", instructions: "?" } },
+    check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
     calibration: {
       at: "x",
       hunks: 15,
@@ -218,7 +218,7 @@ describe("CompileDoneView", () => {
       id,
       status,
       when: "edit",
-      check: { type: "model", question: { type: "boolean", instructions: "?" } },
+      check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
     });
 
   it("names the buckets and the follow-up commands when nothing is off", () => {

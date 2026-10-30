@@ -32,7 +32,7 @@ const rules: Rule[] = [
     source: { path: "AGENTS.md" },
     status: "active",
     when: "edit",
-    check: { type: "model", question: { type: "boolean", instructions: "fixture question" } },
+    check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "fixture question" } },
   },
 ];
 const binary = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0xff]);

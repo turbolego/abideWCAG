@@ -90,6 +90,10 @@ export const modelCheckSchema = z.object({
   type: z.literal("model"),
   question: questionSchema,
   overlaps: overlapsSchema,
+  /** Which model backend to use. Default: "jev". "laya" = local LayaWCAG ONNX model. */
+  backend: z.enum(["jev", "laya"]).optional().default("jev"),
+  /** For backend="laya": which WCAG 2.2 criterion this rule checks (e.g. "1.4.3"). */
+  criterion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
 });
 
 export const deferredCheckSchema = z.object({

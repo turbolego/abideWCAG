@@ -20,7 +20,7 @@ const rule = (id: string, scope?: string[]): Rule => ({
   status: "active",
   when: "edit",
   ...(scope ? { scope } : {}),
-  check: { type: "model", question: { type: "boolean", instructions: "?" } },
+  check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
 });
 
 describe("audit", () => {

@@ -65,7 +65,7 @@ const modelRule = (id: string, when: "edit" | "turn", scope?: string[]): Rule =>
   status: "active",
   when,
   ...(scope === undefined ? {} : { scope }),
-  check: { type: "model", question: { type: "boolean", instructions: "?" } },
+  check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
 });
 
 describe("running a check", () => {

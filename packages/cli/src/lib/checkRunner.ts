@@ -1,6 +1,7 @@
 import type { CheckPhase, Rule, Thresholds, Usage, Verdict } from "@coldtea/abide-schema";
 import type { FileDiff } from "./git.js";
 import { checkWithModel, isModelRule, type ModelRule } from "./jev.js";
+import { checkWithLaya, isLayaRule, type LayaModelRule } from "./layaWcag.js";
 import { ruleAppliesTo } from "./scope.js";
 
 export type CheckRequest = {
@@ -41,12 +42,12 @@ const renderFiles = (fileDiffs: readonly FileDiff[]): string =>
 
 /** Rules grouped by the files each one applies to, so no rule ever sees a file outside its scope. */
 export const groupByScope = (
-  rules: readonly ModelRule[],
+  rules: readonly (ModelRule | LayaModelRule)[],
   fileDiffs: readonly FileDiff[],
-): { rules: ModelRule[]; fileDiffs: FileDiff[] }[] => {
-  const groups = new Map<string, { rules: ModelRule[]; fileDiffs: FileDiff[] }>();
+): { rules: (ModelRule | LayaModelRule)[]; fileDiffs: FileDiff[] }[] => {
+  const groups = new Map<string, { rules: (ModelRule | LayaModelRule)[]; fileDiffs: FileDiff[] }>();
   for (const rule of rules) {
-    const inScope = fileDiffs.filter((f) => ruleAppliesTo(rule, f.file));
+    const inScope = fileDiffs.filter((f) => ruleAppliesTo(rule as Rule, f.file));
     if (inScope.length === 0) continue;
     const key = inScope.map((f) => f.file).join("\n");
     const group = groups.get(key) ?? { rules: [], fileDiffs: inScope };
@@ -88,39 +89,77 @@ export const mergeOutcomes = (outcomes: readonly CheckOutcome[]): CheckOutcome =
 
 export const runCheck = async (request: CheckRequest): Promise<CheckOutcome> => {
   const files = request.fileDiffs.map((f) => f.file);
-  const modelRules = selectRules(request.rules, request.phase, files).filter(isModelRule);
+  const allRules = selectRules(request.rules, request.phase, files);
+  const jevRules = allRules.filter(isModelRule) as ModelRule[];
+  const layaRules = allRules.filter(isLayaRule) as LayaModelRule[];
+  const modelRules: ModelRule[] = [...jevRules, ...(layaRules as unknown as ModelRule[])];
 
-  const groups = groupByScope(modelRules, request.fileDiffs);
-  if (groups.length === 0) {
+  const jevGroups = groupByScope(jevRules, request.fileDiffs);
+  const layaGroups = groupByScope(layaRules as (ModelRule | LayaModelRule)[], request.fileDiffs);
+
+  if (jevGroups.length === 0 && layaGroups.length === 0) {
     return { verdicts: [], modelRules, calls: 0, usage: {}, modelLatencyMs: 0 };
   }
 
   const started = performance.now();
-  const results = await Promise.all(
-    groups.map(async (group) => {
-      const only = group.fileDiffs.length === 1 ? group.fileDiffs[0] : undefined;
-      const result = await checkWithModel(
-        group.rules,
-        {
-          ...(request.task === undefined ? {} : { task: request.task }),
-          ...(request.phase === "edit" && only !== undefined
-            ? { file: only.file, diff: only.text }
-            : { files: group.fileDiffs.map((f) => f.file), diff: renderFiles(group.fileDiffs) }),
-        },
-        request.thresholds,
-        request.timeoutMs,
-        request.retries ?? 0,
-      );
-      return only === undefined
-        ? result
-        : { ...result, verdicts: result.verdicts.map((v) => ({ ...v, file: only.file })) };
-    }),
-  );
+
+  const [jevResults, layaResults] = await Promise.all([
+    // Jev (cloud) backend
+    Promise.all(
+      jevGroups.map(async (group) => {
+        const only = group.fileDiffs.length === 1 ? group.fileDiffs[0] : undefined;
+        const result = await checkWithModel(
+          group.rules as readonly ModelRule[],
+          {
+            ...(request.task === undefined ? {} : { task: request.task }),
+            ...(request.phase === "edit" && only !== undefined
+              ? { file: only.file, diff: only.text }
+              : { files: group.fileDiffs.map((f) => f.file), diff: renderFiles(group.fileDiffs) }),
+          },
+          request.thresholds,
+          request.timeoutMs,
+          request.retries ?? 0,
+        );
+        return only === undefined
+          ? result
+          : { ...result, verdicts: result.verdicts.map((v) => ({ ...v, file: only.file })) };
+      }),
+    ),
+    // LayaWCAG (local ONNX) backend
+    layaGroups.length === 0
+      ? Promise.resolve([])
+      : (async () => {
+          const out: { verdicts: Verdict[]; latencyMs: number }[] = [];
+          for (const group of layaGroups) {
+            const only = group.fileDiffs.length === 1 ? group.fileDiffs[0] : undefined;
+            const state = {
+              ...(request.task === undefined ? {} : { task: request.task }),
+              ...(request.phase === "edit" && only !== undefined
+                ? { file: only.file, diff: only.text }
+                : { files: group.fileDiffs.map((f) => f.file), diff: renderFiles(group.fileDiffs) }),
+            };
+            const result = await checkWithLaya(group.rules as readonly LayaModelRule[], state, request.thresholds);
+            out.push({
+              verdicts:
+                only === undefined
+                  ? result.verdicts
+                  : result.verdicts.map((v) => ({ ...v, file: only.file })),
+              latencyMs: result.latencyMs,
+            });
+          }
+          return out;
+        })(),
+  ]);
+
+  const jevVerdicts = jevResults.flatMap((r) => r.verdicts);
+  const jevUsage = jevResults.reduce<Usage>((sum, r) => addUsage(sum, r.usage), {});
+  const layaVerdicts = layaResults.flatMap((r) => r.verdicts);
+
   return {
-    verdicts: results.flatMap((r) => r.verdicts),
+    verdicts: [...jevVerdicts, ...layaVerdicts],
     modelRules,
-    calls: groups.length,
-    usage: results.reduce<Usage>((sum, r) => addUsage(sum, r.usage), {}),
+    calls: jevGroups.length + layaGroups.length,
+    usage: jevUsage,
     modelLatencyMs: Math.round(performance.now() - started),
   };
 };

@@ -34,24 +34,24 @@ describe("scope", () => {
       rule({
         id: "edit",
         when: "edit",
-        check: { type: "model", question: { type: "boolean", instructions: "?" } },
+        check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
       }),
       rule({
         id: "turn",
         when: "turn",
-        check: { type: "model", question: { type: "boolean", instructions: "?" } },
+        check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
       }),
       rule({
         id: "weak",
         when: "edit",
         status: "weak",
-        check: { type: "model", question: { type: "boolean", instructions: "?" } },
+        check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
       }),
       rule({
         id: "scoped",
         when: "edit",
         scope: ["src/**"],
-        check: { type: "model", question: { type: "boolean", instructions: "?" } },
+        check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
       }),
       rule({ id: "deferred", check: { type: "deferred", reason: "r" } }),
     ];
@@ -67,10 +67,10 @@ describe("turn grouping", () => {
       ...rule({
         id,
         when: "turn",
-        check: { type: "model", question: { type: "boolean", instructions: "?" } },
+        check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
       }),
       ...(scope ? { scope } : {}),
-      check: { type: "model", question: { type: "boolean", instructions: "?" } },
+      check: { type: "model", backend: "jev", question: { type: "boolean", instructions: "?" } },
     });
     const groups = groupByScope(
       [

@@ -43,3 +43,13 @@ export const MAX_FILE_READ_BYTES = 16 * 1024 * 1024;
 export const MAX_REPLAY_RECORD_BYTES = 16 * 1024 * 1024;
 /** How long Stop's per-file fallback may spend on all of its diffs together. */
 export const STOP_FALLBACK_DIFF_TIMEOUT_MS = 6_000;
+
+/** LayaWCAG: local ONNX model for WCAG 2.2 violation detection. */
+/** Directory containing laya-wcag.onnx, laya-wcag.onnx.data, tokenizer.json, wcag_criteria.json. */
+export const LAYA_WCAG_MODEL_DIR_ENV = "LAYA_WCAG_MODEL_DIR";
+/** Default search path for the LayaWCAG model bundle. */
+export const LAYA_WCAG_MODEL_DIR_DEFAULT = "/home/kloa/repos/LayaWCAG/model";
+/** Maximum input sequence length (tokens) for the LayaWCAG model. */
+export const LAYA_WCAG_MAX_SEQ_LEN = 256;
+/** Timeout for the ONNX model load (first call only). */
+export const LAYA_WCAG_LOAD_TIMEOUT_MS = 30_000;
