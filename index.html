@@ -134,7 +134,7 @@
 <script type="module">
 import * as ort from "./vendor/ort.min.mjs";
 import { Tokenizer } from "./vendor/tokenizers.min.mjs";
-import { WcagLaya, loadCriteria, buildWcagSequence, collateOne } from "./laya-wcag-core.js";
+import { WcagLaya, buildWcagSequence, collateOne } from "./laya-wcag-core.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -229,7 +229,7 @@ async function loadModel() {
   const [tj, tc, criteria, manifest] = await Promise.all([
     fetch(MODEL_DIR + "tokenizer.json").then(r => { if (!r.ok) throw new Error("tokenizer.json: " + r.status); return r.json(); }),
     fetch(MODEL_DIR + "tokenizer_config.json").then(r => { if (!r.ok) throw new Error("tokenizer_config.json: " + r.status); return r.json(); }),
-    loadCriteria(MODEL_DIR + "wcag_criteria.json"),
+    fetch(MODEL_DIR + "wcag_criteria.json").then(r => { if (!r.ok) throw new Error("wcag_criteria.json: " + r.status); return r.json(); }),
     fetch(MODEL_DIR + "manifest.json").then(r => { if (!r.ok) throw new Error("manifest.json: " + r.status); return r.json(); }),
   ]);
 
