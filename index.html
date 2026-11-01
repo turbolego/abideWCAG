@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>abideWCAG — Live WCAG 2.2 Violation Demo (Laya Model)</title>
 <script src="./coi.js"></script>
+<script src="./axe.min.js"></script>
 <style>
   :root{
     --bg:#f6f5f1; --card:#ffffff; --ink:#1c1b19; --ink2:#5b5850; --line:#e3e0d8;
@@ -78,6 +79,13 @@
         <input type="number" id="threshold" min="0" max="1" step="0.05" value="0.5">
       </div>
       <div>
+        <label for="urlInput">Page URL (optional)</label>
+        <input type="url" id="urlInput" placeholder="https://example.com" style="width:100%" autocomplete="url">
+      </div>
+      <div style="align-self:end">
+        <button id="fetchBtn" class="secondary">Fetch & Check</button>
+      </div>
+      <div>
         <label>Max sequence length</label>
         <input type="number" id="maxLen" min="64" max="512" step="32" value="256">
       </div>
@@ -105,6 +113,7 @@
 
   <div class="card" id="resultsCard" style="display:none">
     <h2>Results</h2>
+    <p class="note" id="axeSummary" style="margin:0 0 10px"></p>
     <div class="grid2">
       <div>
         <h3 style="font-size:14px;margin:0 0 8px">Violations (P ≥ threshold)</h3>
@@ -119,6 +128,10 @@
     <details style="margin-top:12px">
       <summary>Show all 63 criteria as badges</summary>
       <div class="criteria-list" id="criteriaBadges"></div>
+    </details>
+    <details style="margin-top:12px" id="axeDetails">
+      <summary>axe-core results</summary>
+      <div id="axeResults" style="margin-top:8px"></div>
     </details>
     <p class="model-info" id="timing"></p>
   </div>
@@ -321,6 +334,21 @@ function renderResults(res) {
 
   // Timing
   $("timing").textContent = `Inference: ${res.latency_ms.toFixed(0)} ms · Threshold: ${thresh} · Backend: ${backendUsed.toUpperCase()}`;
+
+  // axe summary line
+  const axeSum = $("axeSummary");
+  if (res.axeViolations === null) {
+    axeSum.textContent = "axe-core skipped (no criterion reached the flag threshold).";
+    axeSum.className = "note";
+  } else if (res.axeViolations === "error") {
+    axeSum.textContent = "axe-core failed: " + (res.axeError || "unknown error");
+    axeSum.className = "warn";
+  } else {
+    axeSum.textContent = `axe-core: ${res.axeViolations} rule violation(s) found.`;
+    axeSum.className = "note";
+  }
+  renderAxeResults(res.axeResults);
+
   $("resultsCard").style.display = "block";
 }
 
@@ -337,6 +365,23 @@ async function runCheck() {
   const res = await wcag.systemOne(text, { threshold: thresh, maxLen });
   const totalMs = performance.now() - t0;
   res.latency_ms = totalMs;
+
+  // Auto-run axe-core if any criterion reached the flag threshold
+  const triggered = res.violations.some(v => v.violation >= thresh);
+  if (triggered) {
+    setStatus("Criterion threshold met — running axe-core…");
+    try {
+      const axeResult = await runAxe(text);
+      res.axeViolations = axeResult.violations ? axeResult.violations.length : 0;
+      res.axeResults = axeResult;
+    } catch (e) {
+      console.error(e);
+      res.axeViolations = "error";
+      res.axeError = e?.message || String(e);
+    }
+  } else {
+    res.axeViolations = null; // not run
+  }
   renderResults(res);
   setStatus(`Done in ${totalMs.toFixed(0)} ms`, "ok");
 }
@@ -356,6 +401,74 @@ $("loadBtn").addEventListener("click", () => loadModel().catch(e => { console.er
 $("warmBtn").addEventListener("click", warmUp);
 $("runBtn").addEventListener("click", runCheck);
 $("clearBtn").addEventListener("click", clearResults);
+$("fetchBtn").addEventListener("click", fetchAndCheck);
+
+// Run axe-core against the provided HTML by injecting it into an off-screen
+// container in the main document (axe must run in the same document it was
+// loaded in), then removing the container.
+async function runAxe(html) {
+  return new Promise((resolve, reject) => {
+    if (typeof window.axe === "undefined") return reject(new Error("axe-core not loaded"));
+    const container = document.createElement("div");
+    container.id = "abide-axe-audit";
+    container.style.cssText = "position:absolute;left:-9999px;top:0;width:800px;visibility:hidden;";
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    setTimeout(() => {
+      window.axe.run("#abide-axe-audit", { resultTypes: ["violations"] })
+        .then((results) => { container.remove(); resolve(results); })
+        .catch((e) => { container.remove(); reject(e); });
+    }, 80);
+  });
+}
+
+function renderAxeResults(axeResults) {
+  const box = document.getElementById("axeResults");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!axeResults) { box.innerHTML = '<p class="note">axe-core was not run (no criterion reached the flag threshold).</p>'; return; }
+  if (axeResults.error) { box.innerHTML = `<p class="warn">axe-core error: ${axeResults.error}</p>`; return; }
+  const v = axeResults.violations || [];
+  if (!v.length) { box.innerHTML = '<p style="color:var(--good)">axe-core: 0 violations 🎉</p>'; return; }
+  const tbl = document.createElement("table");
+  tbl.innerHTML = `<thead><tr><th>Rule</th><th>Impact</th><th>Description</th><th class="num">Nodes</th></tr></thead><tbody></tbody>`;
+  const tb = tbl.querySelector("tbody");
+  for (const viol of v) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><code></code></td><td></td><td></td><td class="num"></td>`;
+    tr.querySelector("code").textContent = viol.id;
+    tr.children[1].textContent = viol.impact || "";
+    tr.children[2].textContent = viol.help || viol.description || "";
+    tr.children[3].textContent = String(viol.nodes ? viol.nodes.length : 0);
+    tb.appendChild(tr);
+  }
+  box.appendChild(tbl);
+  const p = document.createElement("p");
+  p.className = "note";
+  p.textContent = `axe-core v${axeResults.axeVersion || "?"} · ${v.length} rule(s) violated · ${axeResults.url || "inline snippet"}`;
+  box.appendChild(p);
+}
+
+async function fetchAndCheck() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) { setStatus("Enter a URL first.", "warn"); return; }
+  if (!wcag) { setStatus("Load the model first.", "warn"); return; }
+  let full = url;
+  if (!/^https?:\/\//i.test(full)) full = "https://" + full;
+  document.getElementById("fetchBtn").disabled = true;
+  try {
+    setStatus(`Fetching ${full} … (CORS must allow this origin)`);
+    const res = await fetch(full, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    document.getElementById("htmlInput").value = text;
+    setStatus(`Fetched ${text.length} chars from ${full}. Running model…`);
+    await runCheck();
+  } catch (e) {
+    console.error(e);
+    setStatus(`Could not fetch ${full}: ${e?.message || e}. The target must send CORS headers (Access-Control-Allow-Origin). You can also paste its HTML manually.`, "warn");
+  } finally { document.getElementById("fetchBtn").disabled = false; }
+}
 </script>
 </body>
 </html>
