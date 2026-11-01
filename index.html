@@ -109,6 +109,20 @@
       <button id="runBtn" disabled>Run check</button>
       <button id="clearBtn" class="secondary" disabled>Clear</button>
     </div>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:1">
+        <label for="urlList">Batch URLs — one per line (Laya gates axe-core per page)</label>
+        <textarea id="urlList" rows="4" spellcheck="false" placeholder="https://example.com/page1&#10;https://example.com/page2&#10;..."></textarea>
+      </div>
+      <div style="align-self:end">
+        <button id="batchBtn" class="secondary" disabled>Run batch</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="batchCard" style="display:none">
+    <h2>Batch results (<span id="batchCount">0</span> URLs)</h2>
+    <div id="batchResults"></div>
   </div>
 
   <div class="card" id="resultsCard" style="display:none">
@@ -277,6 +291,7 @@ async function loadModel() {
   setStatus(`Ready. Download ${(dlMs / 1000).toFixed(1)} s${fetchParts.lastFromCache ? ` (${fetchParts.lastFromCache} of ${v.data.parts.length} parts from cache)` : ""}, session init ${(initMs / 1000).toFixed(1)} s`, "ok");
   $("warmBtn").disabled = false;
   $("runBtn").disabled = false;
+  $("batchBtn").disabled = false;
   $("clearBtn").disabled = false;
   $("loadBtn").disabled = true;
   $("provider").disabled = true;
@@ -402,6 +417,71 @@ $("warmBtn").addEventListener("click", warmUp);
 $("runBtn").addEventListener("click", runCheck);
 $("clearBtn").addEventListener("click", clearResults);
 $("fetchBtn").addEventListener("click", fetchAndCheck);
+$("batchBtn").addEventListener("click", runBatch);
+
+// Batch: fetch each URL, run Laya, and only run axe-core on pages where a
+// criterion reaches the threshold. Renders a per-URL summary table.
+async function runBatch() {
+  if (!wcag) { setStatus("Load the model first.", "warn"); return; }
+  const urls = document.getElementById("urlList").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (!urls.length) { setStatus("Enter at least one URL in the batch list.", "warn"); return; }
+  const thresh = parseFloat(document.getElementById("threshold").value) || 0.5;
+  const maxLen = parseInt(document.getElementById("maxLen").value, 10) || 256;
+  const btn = document.getElementById("batchBtn");
+  btn.disabled = true;
+  document.getElementById("runBtn").disabled = true;
+  document.getElementById("batchCard").style.display = "block";
+  const box = document.getElementById("batchResults");
+  box.innerHTML = "";
+  const tbl = document.createElement("table");
+  tbl.innerHTML = `<thead><tr><th>#</th><th>URL</th><th class="prob">max P</th><th class="prob">≥ ${thresh}</th><th class="prob">axe-core</th><th>status</th></tr></thead><tbody></tbody>`;
+  const tb = tbl.querySelector("tbody");
+  box.appendChild(tbl);
+  document.getElementById("batchCount").textContent = String(urls.length);
+  let axeRuns = 0;
+  for (let i = 0; i < urls.length; i++) {
+    let full = urls[i];
+    if (!/^https?:\/\//i.test(full)) full = "https://" + full;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="prob">${i + 1}</td><td style="word-break:break-all"></td><td class="prob">–</td><td class="prob">–</td><td class="prob">–</td><td></td>`;
+    tr.children[1].textContent = full;
+    tb.appendChild(tr);
+    setStatus(`Batch ${i + 1}/${urls.length}: fetching ${full} …`);
+    try {
+      const res = await fetch(full, { mode: "cors" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const r = await wcag.systemOne(html, { threshold: thresh, maxLen });
+      const maxP = Math.max(...r.criteria.map(c => c.violation));
+      const flagged = r.violations.filter(v => v.violation >= thresh);
+      tr.children[2].textContent = (maxP * 100).toFixed(1) + "%";
+      tr.children[3].textContent = String(flagged.length);
+      if (flagged.length) {
+        tr.children[4].textContent = "running…";
+        try {
+          const axeResult = await runAxe(html);
+          axeRuns++;
+          tr.children[4].textContent = (axeResult.violations ? axeResult.violations.length : 0) + " rule(s)";
+          tr.children[4].title = (axeResult.violations || []).map(v => v.id).join(", ");
+        } catch (e) {
+          tr.children[4].textContent = "error";
+          tr.children[4].title = e?.message || String(e);
+        }
+      } else {
+        tr.children[4].textContent = "skipped";
+        tr.children[4].title = "No criterion reached the flag threshold — axe-core not run";
+      }
+      tr.children[5].textContent = r.latency_ms.toFixed(0) + " ms";
+    } catch (e) {
+      console.error(e);
+      tr.children[5].textContent = "fetch failed: " + (e?.message || e);
+      tr.children[5].style.color = "var(--warn)";
+    }
+  }
+  setStatus(`Batch done: ${urls.length} URLs, axe-core ran on ${axeRuns}.`, "ok");
+  btn.disabled = false;
+  document.getElementById("runBtn").disabled = false;
+}
 
 // Run axe-core against the provided HTML by injecting it into an off-screen
 // container in the main document (axe must run in the same document it was
