@@ -386,7 +386,7 @@ async function runCheck() {
   if (triggered) {
     setStatus("Criterion threshold met — running axe-core…");
     try {
-      const axeResult = await runAxe(text);
+      const axeResult = await runAxe(text, document.getElementById("urlInput").value);
       res.axeViolations = axeResult.violations ? axeResult.violations.length : 0;
       res.axeResults = axeResult;
     } catch (e) {
@@ -448,9 +448,7 @@ async function runBatch() {
     tb.appendChild(tr);
     setStatus(`Batch ${i + 1}/${urls.length}: fetching ${full} …`);
     try {
-      const res = await fetch(full, { mode: "cors" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const html = await res.text();
+      const { html, proxy } = await fetchViaProxy(full);
       const r = await wcag.systemOne(html, { threshold: thresh, maxLen });
       const maxP = Math.max(...r.criteria.map(c => c.violation));
       const flagged = r.violations.filter(v => v.violation >= thresh);
@@ -459,7 +457,7 @@ async function runBatch() {
       if (flagged.length) {
         tr.children[4].textContent = "running…";
         try {
-          const axeResult = await runAxe(html);
+          const axeResult = await runAxe(html, full);
           axeRuns++;
           tr.children[4].textContent = (axeResult.violations ? axeResult.violations.length : 0) + " rule(s)";
           tr.children[4].title = (axeResult.violations || []).map(v => v.id).join(", ");
@@ -471,7 +469,7 @@ async function runBatch() {
         tr.children[4].textContent = "skipped";
         tr.children[4].title = "No criterion reached the flag threshold — axe-core not run";
       }
-      tr.children[5].textContent = r.latency_ms.toFixed(0) + " ms";
+      tr.children[5].textContent = r.latency_ms.toFixed(0) + " ms · " + proxy;
     } catch (e) {
       console.error(e);
       tr.children[5].textContent = "fetch failed: " + (e?.message || e);
@@ -483,23 +481,90 @@ async function runBatch() {
   document.getElementById("runBtn").disabled = false;
 }
 
-// Run axe-core against the provided HTML by injecting it into an off-screen
-// container in the main document (axe must run in the same document it was
-// loaded in), then removing the container.
-async function runAxe(html) {
+// CORS proxies (same pattern as uustreak.no/axe-test.html)
+const CORS_PROXIES = [
+  { name: "proxy.cors.dev", url: (target) => `https://proxy.cors.dev/?${encodeURIComponent(target)}` },
+  { name: "AllOrigins", url: (target) => `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}` },
+  { name: "corsproxy.io", url: (target) => `https://corsproxy.io/?url=${encodeURIComponent(target)}` },
+];
+
+// Run axe-core inside an isolated iframe using srcdoc (uustreak pattern).
+// axe.min.js is inlined into the srcdoc because a sandboxed srcdoc iframe has
+// an opaque origin and cannot load subresources from the parent origin.
+let __axeSrc = null;
+async function getAxeSrc() {
+  if (!__axeSrc) {
+    const res = await fetch("./axe.min.js");
+    if (!res.ok) throw new Error("could not load axe.min.js: HTTP " + res.status);
+    __axeSrc = await res.text();
+  }
+  return __axeSrc;
+}
+
+async function runAxe(html, targetUrl = "") {
+  const axeSrc = await getAxeSrc();
   return new Promise((resolve, reject) => {
-    if (typeof window.axe === "undefined") return reject(new Error("axe-core not loaded"));
-    const container = document.createElement("div");
-    container.id = "abide-axe-audit";
-    container.style.cssText = "position:absolute;left:-9999px;top:0;width:800px;visibility:hidden;";
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    setTimeout(() => {
-      window.axe.run("#abide-axe-audit", { resultTypes: ["violations"] })
-        .then((results) => { container.remove(); resolve(results); })
-        .catch((e) => { container.remove(); reject(e); });
-    }, 80);
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:absolute;left:-9999px;top:0;width:800px;height:600px;visibility:hidden;";
+    iframe.sandbox = "allow-scripts";
+    iframe.referrerPolicy = "no-referrer";
+    document.body.appendChild(iframe);
+    const esc = (s) => s.replace(/<\/script/gi, "<\/script");
+    const testPage = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>axe test</title>
+  <script>${esc(axeSrc)}</script>
+</head>
+<body>
+${html}
+<script>
+  (async () => {
+    try {
+      const results = await window.axe.run(document, { resultTypes: ['violations'] });
+      parent.postMessage({ type: 'axe-results', results }, '*');
+    } catch (e) {
+      parent.postMessage({ type: 'axe-error', error: e.message }, '*');
+    }
+  })();
+</script>
+</body>
+</html>`;
+    const cleanup = () => { try { iframe.remove(); window.removeEventListener("message", handler); } catch {} };
+    const handler = (ev) => {
+      if (ev.source !== iframe.contentWindow) return;
+      if (ev.data?.type === "axe-results") { cleanup(); resolve(ev.data.results); }
+      else if (ev.data?.type === "axe-error") { cleanup(); reject(new Error(ev.data.error)); }
+    };
+    window.addEventListener("message", handler);
+    setTimeout(() => { cleanup(); reject(new Error("axe-core timed out")); }, 30000);
+    iframe.srcdoc = testPage;
   });
+}
+
+// Fetch HTML: try direct first (CORS-enabled sites), then public CORS proxies.
+async function fetchViaProxy(url) {
+  const attempts = [
+    { name: "direct", url },
+    ...CORS_PROXIES.map(p => ({ name: p.name, url: p.url(url) }))
+  ];
+  const errors = [];
+  for (const attempt of attempts) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+      const response = await fetch(attempt.url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const html = await response.text();
+      if (!html.trim()) throw new Error("empty response");
+      return { html, proxy: attempt.name };
+    } catch (error) {
+      const msg = error.name === "AbortError" ? "timed out" : error.message;
+      errors.push(`${attempt.name}: ${msg}`);
+    } finally { clearTimeout(timeout); }
+  }
+  throw new Error("All fetch attempts failed — " + errors.join("; "));
 }
 
 function renderAxeResults(axeResults) {
@@ -537,16 +602,14 @@ async function fetchAndCheck() {
   if (!/^https?:\/\//i.test(full)) full = "https://" + full;
   document.getElementById("fetchBtn").disabled = true;
   try {
-    setStatus(`Fetching ${full} … (CORS must allow this origin)`);
-    const res = await fetch(full, { mode: "cors" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    document.getElementById("htmlInput").value = text;
-    setStatus(`Fetched ${text.length} chars from ${full}. Running model…`);
+    setStatus(`Fetching ${full} … (trying direct, then CORS proxies)`);
+    const { html, proxy } = await fetchViaProxy(full);
+    document.getElementById("htmlInput").value = html;
+    setStatus(`Fetched ${html.length} chars from ${full} via ${proxy}. Running model…`);
     await runCheck();
   } catch (e) {
     console.error(e);
-    setStatus(`Could not fetch ${full}: ${e?.message || e}. The target must send CORS headers (Access-Control-Allow-Origin). You can also paste its HTML manually.`, "warn");
+    setStatus(`Could not fetch ${full}: ${e?.message || e}. You can also paste its HTML manually.`, "warn");
   } finally { document.getElementById("fetchBtn").disabled = false; }
 }
 </script>
